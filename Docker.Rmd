@@ -1,0 +1,36 @@
+---
+title: "Docker Deep Dive - Abstract"
+subtitle: "by Nigel Poulton"
+date: April 28, 2020
+output: pdf_document
+toc: true
+toc_depth: 2
+number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is an abstract of the book "Docker Deep Dive" by Nigel Poulton. The structure
+of this document doesn't follow the one of the book, and Docker's setup isn't covered.
+
+# 1. Introduction
+
+## What is Docker
+<!-- Selon l'explication, parler des containers, diff avec VMs -->
+
+# 2. In practice
+<!-- P-e start avec container, diff VMs, comment c'est construit, ... -->
+## What is an image
+## What are containers
+
+
+
+```{r cars}
+summary(cars)
+```
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```

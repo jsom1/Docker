@@ -1,0 +1,21 @@
+# Dossiers propres à RStudio
+*.Rproj
+*.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Dossiers temporaires
+/tmp
+/scratch
+
+# Dossiers de cache
+/*_cache
+/data
+/quality
+
+# Modules secrets
+*_SECRET_*
+
+# Fichiers auxiliaires
+/README.html
