@@ -45,7 +45,7 @@ We can either create our own image, or use an existing one to start a container 
 Containers have existed for a long time, but were complex and out of reach of most organizations.
 Docker is the company that made containers simple, both for Linux and Windows. It basically creates and manages containers. Note that it is possible to run Linux containers on Mac using Docker for Mac.
 Nowadays, Docker is a very popular container runtime but there are many others.
-Docker consists of two major components: the Docker client and the Docker Daemon (or "server" or "engine"). Once installed, the client-server connection can be tested with the command "docker version".
+Docker consists of two major components: the Docker client and the Docker engine (or "daemon"). Once installed, the client-server connection can be tested with the command "docker version".
 
 ## Kubernetes
 It is an open-source project from Google that has become the leading orchestrator of containerized apps.
@@ -152,3 +152,42 @@ We now have an image with the app inside. We can start a container from this ima
 ```
 To see the result (on Play With Docker), click on the button *OPEN PORT* above the terminal and type 8080 (otherwise open a browser and navigate to localhost:8080).
 The process of building an image from code and then building a container from this image is called *containerizing* an app.
+
+\newpage
+# 3. Technical
+
+## The docker engine (or server)
+
+At the beginning, the docker engine had two major components:
+
+- The Docker daemon: it used to be a monolithic binary that contained all the code for the Docker client, the API, the container runtime, image builds, and much more. This is not what Docker wanted (slow and hard to innovate), and the work of breaking apart the daemon into smaller tools is still an ongoing process. To this day, it has already seen all of the container execution and container runtime code entirely removed. Is is becoming more and more modular, and many components can be swapped, thanks to the OCI (Open Container Initiative) standards.
+
+- LXC: provided the daemon with access to fundamental building-blocks of containers that existed in the Linux kernel (*namespaces* and *control groups*). Problems: LXC is Linux specific and Docker didn't want to rely on an external tool for the core of the project. They replaced LXC with their own platform-agnostic tool called *libcontainer*, which provides Docker with accesss to the fundamental container building-blocks that exist inside the kernel.
+
+The current Docker engine architecture is the following.
+
+![Current Docker engine architecture](Images/DockerEngineDet.png)
+
+The old monolithic daemon was broken down, giving birth to new layers:
+
+- runc: tool that manages container runtime code. It's the reference implementation of the OCI container-runtime-spec. In fact, runc is a CLI wrapper for libcontainer. It has a single purpose: **create containers**.
+
+- containerd: tool that used to only manage container lifecycle operations (*start*, *stop*, *pause*, *rm*, ...). It now also takes care of image management (push and pull, ...).
+
+The daemon still performs image management, image builds, REST API, authentication, security, core networking and orchestration.
+
+So, what happens when we create a new container via the docker CLI (the Docker client) ?
+```{r}
+# docker container run --name ctr1 -it alpine:latest sh
+```
+Based on Fig. 1, the Docker client converts the command into the appropriate API payload and POSTs it to the correct API endpoit.  
+We saw that the REST API is implemented in the Daemon, which is the layer under the Docker client. Once the daemon receives the command to create a new container, it makes a call to containerd via a CRUD-style API over gRPC.  
+Containerd converts the required Docker image into an OCI bundle and tells runc to use it to create a new container.  
+Runc interfaces with the OS kernel to pull together all of the constructs necessary to create a container (namespaces, cgroups, ...). The container process is started as a child-process of runc, and as soon as it is started runc will exit. This means we can run hundreds of containers without having to run hundreds of runc instances.  
+Once a container's parent runc process exits, the associated containerd-shim process becomes the container's parent. Among other things, shims have the responsibility to keep any stdin/stdout streams open (so that when the daemon is restarted, the container doesn't terminate due to pipes being closed) and to report the container's exit status back to the daemon.
+
+The advantage of this model (code to start and manage containers out of the daemon) is that it makes it possible to perform maintenance and upgrades on the daemon without impacting running containers. In the old model, every daemon upgrade would kill all containers on the host.
+
+In Linux, all these components are implemented in separate binaries: *dockerd* (docker daemon), *docker-containerd*, *docker-containerd-shim* and *docker-runc*.
+
+## Images
