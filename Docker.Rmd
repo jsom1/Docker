@@ -44,6 +44,7 @@ We can either create our own image, or use an existing one to start a container 
 ## Docker
 Containers have existed for a long time, but were complex and out of reach of most organizations.
 Docker is the company that made containers simple, both for Linux and Windows. It basically creates and manages containers. Note that it is possible to run Linux containers on Mac using Docker for Mac.
+With Docker, running an application is as simple as pulling an image and running a container. No need to worry about setup, dependencies, or config... It just works.
 Nowadays, Docker is a very popular container runtime but there are many others.
 Docker consists of two major components: the Docker client and the Docker engine (or "daemon"). Once installed, the client-server connection can be tested with the command "docker version".
 
@@ -191,3 +192,155 @@ The advantage of this model (code to start and manage containers out of the daem
 In Linux, all these components are implemented in separate binaries: *dockerd* (docker daemon), *docker-containerd*, *docker-containerd-shim* and *docker-runc*.
 
 ## Images
+
+Images are like a stopped container. We pull images from an image registry (like Docker Hub), and use it to start one (*docker container run*) or more (*docker service create*) containers.  
+Images are made up of multiple layers stacked on each other and represented as a single object. They contain a cut-down OS and all of the files and dependencies required to run an app. They are usually small and lightweight. For example, the official Alpine Linux Docker image is about 4MB in size! Windows-based images are a little bit different and tend to be bigger.
+
+![Docker image](Images/DockerImages.png)
+
+It is possible to stop a container and create a new image from it: images are considered *build-time* constructs, whereas containers are *run-time* constructs. Once a container is started, the two constructs become dependant on each other. We cannot delete the image until the last container using it has been stopped and destroyed.
+
+On Linux, the image repository is located at /var/lib/docker/\<storage-driver\>. We can if our host has any images in its local repository with the following command:
+```{r}
+# docker image ls
+```
+The syntax to pull an image is *docker image pull \<image\>. For example:
+```{r}
+# docker image pull ubuntu:latest
+```
+We can then check the size and other information with *docker image ls*.
+
+An image registry (like Docker Hub) contains multiple repositories, which can contain multiple images. There are official and unofficial repositories. On Docker Hub, official repositories contain images that have been vetted by Docker -> they contain up-to-date, secure and high-quality code. Unofficial repositories can contain malicious images.
+Most of the popular OS and apps have their own official repositories on Docker Hub.
+
+When working with an image from an official repository, the syntax for *docker image pull* is *docker image pull \<repository\>:\<tag\>*.
+In the previous command, we pulled the latest image from the ubuntu repository. Note that *:latest* it the default value and it is not necessary to specify it. Also, *latest* isn't necessary the most recent image; for example, the most recent image in the alpine repository is tagged as *edge* (*latest* is the most recent stable image).  
+The syntax to pull images from an unofficial repository is *docker image pull \<Docker Hub username/organization\>/\<repository\>:\<tag\>*. Example:
+```{r}
+# docker image pull nigelpoulton/tu-demo:v2
+```
+
+To pull an image from a third party registry (such as Google Container Registry GCR), we need to prepend the repository name with the DNS name of the registy. The last command would become:
+```{r}
+# docker image pull gcr.io/nigelpoulton/tu-demo:v2
+```
+
+Finally, we can pull all of the images in a repository by adding the flag *-a* to the *docker image pull* command. A same image can have different tags (they refer to the same image).
+
+The output of *docker image ls* can be filtered with the flag *--filter*. Example:
+```{r}
+# docker image ls --filter dangling=true
+```
+A dangling image is an image that is no longer tagged, and appears in listings as *\<none\>:\<none\>*. This happens when building a new image and tagging it with an existing tag.
+Dangling images can be deleted with the *docker image prune* command. Adding the flag *-a* also removes unused images (not in use by any container).
+
+Filters supported by docker are:
+
+- dangling: true or false
+- before: requires an image name/ID as argument, and returns all images created before it
+- since: same as *before*, but returns images created after the specified image
+- label: filters images based on the presence of a label or label and value.
+
+The *--format* flag formats the output of the command. Example:
+```{r}
+# docker image ls --format "{{.Repository}}: {{.Tag}}: {{.Size}}"
+```
+This command returns all images, but only display repo, tag and size. Note that we can also use tools from the OS such as grep and awk.
+
+We can also search Docker Hub from the CLI with the *docker search* command. For example, we can search all repos with "nigelpoulton" in the "NAME" field:
+```{r}
+# docker search nigelpoulton
+```
+Another example with a filter:
+```{r}
+# docker search alpine --filter "is-official=true"
+```
+By default, *docker search* displays 25 lines of results. This can be changed with the *--limit* flag.
+
+We saw that images are made up of stacked read-only layers, and represented as a single object. In fact, we see those layers in the output of a *docker image pull* command:
+```{r}
+# docker image pull ubuntu:latest
+```
+The output of this command is the following:
+
+latest: Pulling from library/ubuntu  
+d51af753c3d3: Pull complete  
+fc878cd0a91c: Pull complete  
+6154df8ff988: Pull complete  
+fee5db0ff82f: Pull complete  
+Digest: sha256:747d2dbbaaee995098c9792d99bd333c6783ce56150d1b11e333bbceed5c54d7  
+Status: Downloaded newer image for ubuntu:latest  
+
+Each line in this output that ends with "Pull complete" represents a layer in the pulled image. So, this image has 4 layers.  
+Another way to see the layers of an image is to inspect it with the *docker image inspect* command:
+```{r}
+# docker image inspect ubuntu:latest
+```
+In this output, we see the SHA256 hashes of the 4 layers.
+
+All docker images start with a base layer. Layers are added on top when changes are made or when new content is added. Over-simplified example: we create an image based off Ubuntu Linux 16.04 (first layer) and add the Python package (second layer). Finally, we add a security patch. This would result in the following three layers image:
+
+![Image layers](Images/DockerLayers.png)
+
+It's important to understand that the image is always the combination of all layers. For example, the last image has 3 layers and each of these layer has some files that are combined.
+
+![Files in image layers](Images/DockerLayers2.png)
+
+Here, the overall image only represents 6 files. This is because file 7 in the top layer is an updated version of the file 5 directly below (inline). In this situation, the file in the higher layer obscures the file directly below it. This allows updates versions of files to be added as new layers to the image.
+
+Docker uses a storage driver (snapshotter in newer versions) that is responsible for stacking layers and presenting them as a single unified filesystem. Examples of storage drivers on Linux include *AUFS*, *overlay2*, *devicemapper*, *btrfs* and *zfs*.
+
+The next figure shows the same 3-layer image as it will appear to the system (all 3 layers stacked and merged):
+
+![Merging of files](Images/DockerLayers3.png)
+
+Multiple images share layers, for efficiencies in space and performance. Let's look at the following command:
+```{r}
+# docker image pull -a nigelpoulton/tu-demo
+# docker image ls
+```
+This command pulls all tagged images in the nigelpoulton/tu-demo repository. In the output, it's written "Already exists" for some layers. This is because Docker recognized that it had copies of some image layers.
+Here, docker pulled the *latest* image firt. Then, when it pulled the *v1* and *v2* images, it noticed that it already had some of the layers that make up those images.
+
+So far, we've seen how to pull an image by tag. However, it can be a problem because tags are mutable (it's possible to tag an image with the wrong tag).  
+This is where image digests come to the rescue. All images get a cryptographic content hash (immutable), and we refer to it as the *digest*. We can see the digest of an image with:
+```{r}
+# docker image ls --digests alpine
+```
+Using the digest ensures that we get exactly the image we expect. At the time of the writing of the book, the only way to determine an image's digest is to pull it by tag and then make a note of its digest. However, this should change in the future.
+An image is just a configuration object that lists the layers and some metadata. The layers are where the data lives. Each layer is independant and has no concept of being part of a collective image.  
+Each image is identified by an ID that is a hash of the config object, and each layer is identified by an ID that is a hash of its content -> changing an image or its layers will change those IDs -> image and layers are immutable. We call these hashes content hashes.  
+Problem: when we push and pull images, their layers are compressed. This changes their content, and hence their content hashes... So, how can we check that the image we downloaded is safe ?
+Each layer also gets a  *distribution hash*, which is the hash of the compressed version of the layer.
+
+Is the image we're pulling built for the architecture we're running on ? Docker now supports multi-architecture images. This means a single image can have an image for Linux on x64, Linux on PowerPC, Windows x64, ARM, etc... So, a single image tag can support different architectures.
+To make this happen, the registry API supports 2 important constructs:
+
+- Manifest lists: list of architectures supported by a particular image tag. Each supported architecture has its own manifest.
+- Manifests: list detailing the layers each architecture is composed from.
+
+Below is an example of the official golang image.
+
+![Multi-architecture images](Images/DockerMultiArchi.png)
+
+Let's imagine we're running Docker on a Raspberry Pi (Linux running on ARM architecture). When we pull an image, our docker client makes the relevant calls to the Docker Registry API running on Docker Hub. If a manifest list exists for the image, it will be parsed to see if an entry exists for Linux on ARM. If it is the case, the manifest for that image is retrieved and parsed for the crypto ID's of the layers that make up the image.  
+Each layer is then pulled from Docker Hub.  
+The following example shows how this work by pulling the official golang image:
+```{r}
+# docker container run --rm golang go version
+```
+We see the version of Go as well as the CPU architecture of the host. Note that we don't need to tell Docker we need the Linux x64 or Windows x64 versions of the image. Docker takes care of getting the right image for the platform and architecture we're running.
+At the time of the writing of the book, all official images have manifest lists.
+
+Finally, when we're done with an image, we can delete it from our Docker host with the *docker image rm* command. We cannot delete an image that is being used by a running or a stopped container. If an image layer is shared by more than one image, that layer will not be deleted until all images that reference it have been deleted.
+
+For example, we can delete the golang image with (see image with *docker image ls*):
+```{r}
+# docker image rm golang
+```
+Note that we could also use the image ID (just the few first characters).
+We can delete all image on a docker host with the following command:
+```{r}
+# docker image rm $(docker image ls -q) -f
+```
+because *docker image ls -q* returns a list containing just the images IDs.
