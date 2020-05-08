@@ -191,6 +191,7 @@ The advantage of this model (code to start and manage containers out of the daem
 
 In Linux, all these components are implemented in separate binaries: *dockerd* (docker daemon), *docker-containerd*, *docker-containerd-shim* and *docker-runc*.
 
+\newpage
 ## Images
 
 Images are like a stopped container. We pull images from an image registry (like Docker Hub), and use it to start one (*docker container run*) or more (*docker service create*) containers.  
@@ -344,3 +345,118 @@ We can delete all image on a docker host with the following command:
 # docker image rm $(docker image ls -q) -f
 ```
 because *docker image ls -q* returns a list containing just the images IDs.
+
+\newpage
+## Containers
+
+A container is the execution environment of an image. We can start one or more containers from an image. We can create our own images or start from an existing one (see <https://hub.docker.com/> example).
+
+Before looking at the commands for containers, let's see the differences between containers and VMs in detail.
+To illustrate this difference, we will imagine the following situation: we want to run 4 applications on a physical server (both need a host such as a laptop, a bare metal server, etc). How does the scenario differ between VMs and containers?
+
+### The VM model
+In the VM model, the physical server and the hypervisor (a virtulization platform that allows multiple OS to work on the same physical machine) are started. The hypervisor uses the physical resources of the system (CPU, RAM, storage, ...). Then, it carves these resources into virtualized ones in order to create a software called a *virtual machine*. In our scenario, this process is replicated 4 times. We have to install an OS and our application on each of the 4 VMs.
+
+### The container model
+When the server is started, our chosen OS also starts. The OS also uses physical resources. Then, we install a *container engine* (for example Docker) over the OS. A container engine is in fact an OS whose kernel allows the existence of several isolated instance, the containers. Docker uses resources of the OS such as processes, the file system and the network stack to create one or more containers.  
+Each container looks drop for drop like a real OS, and we can run an application in each of them. In our scenario, we create 4 containers.
+
+The image below shows the differencess between the 2 models.
+
+![Difference between VMs (left) and containers (right)](Images/DockerVMCont.png)
+
+So, a hypervisor virtualizes hardware, while containers virtualize an OS. It is very important to understand that containers share the host OS. In theory, an application developped for Linux containers will not work on Windows (although it's possible in practice).
+
+So far, it seems that the two models are quite identical. However, we see on the image above that each VM is a software that contains a virtual CPU, a virtual RAM, virtual storage disks, and so on. Those virtual resources are handled by an OS, and the problem is that every OS consumes CPU, RAM, storage, etc. Those OS also require a licence, patching, monitoring, and are vulnerable attack vectors...  
+This is what we call the **VM tax**: each OS that we install consumes resources.  
+The advantage of the container model is that it has a single kernel that runs on the host's OS, and this single OS can run hundreds of containers. This means there is only one OS consuming resources, one license, one possible vector of attack, etc. Also, containers contain lightweight OS with no kernel (which is shared with the host and already started); they start way faster than a VM. The time to start a container only depends on the time required to start the application it runs.  
+This difference becomes more and more as the number of applications increases. 
+
+All those differences are in favor of the container model.
+
+### Running containers
+Let's see the commands to run containers. The following examples can be replicated on any Docker host or in Play with Docker (<https://labs.play-with-docker.com/>).
+
+The syntax to create a container is *docker container run \<options\> \<image\>:\<tag\> \<app\>*. Example:
+```{r}
+# docker container run -it ubuntu /bin/bash
+```
+We're in the container and the 12 digits after *@* are the first 12 digits of the container's ID.
+We see that the daemon didn't find the image locally (in cache), so it pulled it from Docker Hub and cached it. We can see it by exiting the container with *Ctrl+d* and by rerunning the previous command.  
+
+The command above starts a Linux container with Bash shell. The flag *-it* connects our terminal to the container's shell and makes it interactive. We didn't specify the *\<tag\>*, and it takes the *latest* image of ubuntu by default. We can check we're in Linux with the command *uname*, and in Ubuntu with *uname -v*. Finally, we asked to run Bash shell, that's why we can use commands such as *ls*, *cd*, and so on. However, some commands don't work because the image is optimized for containers and doesn't contain all the commands and packages... For example, the command *nano file.txt* won't work.
+
+So, running containers is very easy, fast and platform-agnostic.
+
+
+### Container processes
+In the previous example, we started a container that runs Bash shell. It was the single and unique process running in the container. We can see it with the command *ps -elf*: there is ps -elf, but it is dead by the time it is displayed. Windows containers are a little bit different and run more processes.
+
+If we use the command *exit* to get out of Bash shell, we also exit the container -> a container cannot live without running a process (same for Windows if we kill the main process).
+
+So, how can we exit a container without killing it ? Use the command *Ctrl -PQ*, which brings us back to our docker host's shell. The container still runs in the background, as shown by the command:
+```{r}
+# docker container ls
+```
+We can attach back to the container with the command:
+```{r}
+# docker container exec -it <ID> bash
+```
+If we execute *ps -elf* again, we now see 2 bash: this is because the previous command creates a new bash process to which we attach. If we exit this bash, it doesn't kill the container.
+The container runs until the app it runs stops, or until we stop or kill it. 
+We can see it by running the following command:
+```{r}
+# docker container run alpine:latest sleep 10
+```
+
+Finally, we can stop and kill a container with the 2 following commands:
+```{r}
+# docker container stop <ID>
+# docker container rm <ID>
+```
+It is a good practice to proceed in two steps, although it is possible to do it with one command (*docker container rm -f*). This is to give a chance to the application to stop properly.
+
+### Containers lifecycle
+It is a myth that containers can't persist data. let's look at the lifecycle of an Ubuntu container.
+
+```{r}
+# docker container run --name persi -it ubuntu:latest /bin/bash
+```
+We create a container called "persi" in which we'll write data. Inside the container:
+
+cd /tmp  
+ls -al  
+echo “foobar” > newfile.txt  
+ls -al  
+cat newfile.txt  
+
+Now, we get out of the container with *Ctrl -PQ*, and check it is still here with *docker container ls*. We even stop the container:
+```{r}
+# docker container stop <ID/name>
+```
+And check once again its presencee with *docker container ls*. It's not here... To see stopped container, we need to add the flag *-a*:
+```{r}
+# docker container ls -a
+```
+We see in its status that it's "exited". Although it's not running, all its configuration and content still exist in the file system of the Docker host. It can then be restarted any time:
+```{r}
+# docker container start persi
+```
+We see it again with *docker container ls*. Now, we can check the data were persisted. We reconnect to the container:
+```{r}
+# docker container exec -it persi bash
+```
+and we can look for our file, which is still here. The best way to persist data in a container is in a volume, but we will see this later.
+
+Let's kill and delete the container. First, we get out of the container with *Ctrl -PQ*. We then stop it:
+```{r}
+# docker container stop persi
+```
+and delete it:
+```{r}
+# docker container rm persi
+```
+We will see that if we persist data on a volume, they are safe even if we kill and remove the container.
+
+### Stopping containers gracefully
+
