@@ -10,8 +10,11 @@ output:
 ---
 
 \newpage
-The structure of this document is not the same as the one in the book. The installation of Docker is not covered, and only Linux examples are given (no Windows). All the examples can be reproduced if you have Docker, or within Play with Docker (<https://labs.play-with-docker.com/>). The summary is organized as follows: 
+The structure of this document is not the same as the one in the book. The installation of Docker is not covered, and only Linux examples are given (no Windows). All the examples can be reproduced with Docker installed on a host, or on Play with Docker (<https://labs.play-with-docker.com/>). The summary is organized as follows: 
 \tableofcontents
+
+***
+
 \newpage
 
 ```{r setup, include=FALSE, echo=FALSE}
@@ -23,46 +26,44 @@ library(docknitr)
 
 ## The past
 Applications run businesses, and most of them run on servers.
-In the past, we could only run 1 application per server. So, new application = buy a new server.
+In the past, we could only run **1 application per server**. So, new application = buy a new server.
 However, nobody knew the performance requirements of the new app -> they bought
 big servers, which ended operating at 5-10% of their potential capacity.
 It was a waste of resources.
 
 ## Virtual machines
-Then came the VMs, which allowed running multiple applications on the same server.
-It was a huge improvement, but there was still a problem: every VM requires its own dedicated OS and consume resources (CPU, RAM and storage). Also, every OS needs a license, patching and monitoring.
+Then came the VMs, which allowed running **multiple applications on the same server**.
+It was a huge improvement, but there was still a **problem**: every VM requires its own dedicated OS and consume **resources** (CPU, RAM and storage). Also, every OS needs a license, patching and monitoring.
 Finally, VMs are slow to boot and portability isn't great (migrating and moving VM workloads between hypervisors and cloudplatforms isn't easy. A hypervisor is a virtualization platform that allows multiple OS to work on the same physical machine).
 Nowadays, VMs are still very common.
 
 ## Containers
-Containers are a trendy virtualization technology that address the shortcomings of the VM model.
+Containers are a trendy virtualization technology that **address the shortcomings of the VM model**.
 A container is similar to a VM, but every container does not require its own OS. All containers in a single host share a single OS, freeing up huge amounts of system resources and reducing licensing and monitoring costs.
 Unlike VMs, containers are fast to start and ultra-portable: it's easy to move container workloads from a laptop to the cloud, and then to VMs or bare metal in a data center.
 There are Linux and Windows containers. It is vital to understand that a running container shares the kernel of the host machine it is running on -> a containerized app designed to run on a host with a Windows kernel will not run on a Linux host.
 But in practice, it is actually possible to run Linux containers on Windows machines.
 
 ## Images
-An image is an object that contains an OS filesystem and an application (it's like a VM template). Every container is started from an image. So, an image is in fact a stopped container.
+An image is an **object that contains an OS filesystem and an application** (it's like a VM template). Every container is started from an image. So, an image is in fact a stopped container.
 We can either create our own image, or use an existing one to start a container (see for example <https://hub.docker.com/>). Getting images onto the docker host is called "pulling".
 
 ## Docker
 Containers have existed for a long time, but were complex and out of reach of most organizations.
-Docker is the company that made containers simple, both for Linux and Windows. It basically creates and manages containers. Note that it is possible to run Linux containers on Mac using Docker for Mac.
+Docker is the company that **made containers simple**, both for Linux and Windows. It basically creates and manages containers. Note that it is possible to run Linux containers on Mac using Docker for Mac.
 With Docker, running an application is as simple as pulling an image and running a container. No need to worry about setup, dependencies, or config... It just works.
 Nowadays, Docker is a very popular container runtime but there are many others.
-Docker consists of two major components: the Docker client and the Docker engine (or "daemon"). Once installed, the client-server connection can be tested with the command "docker version".
+Docker consists of **two major components: the Docker client** and **the Docker engine** (or "daemon"). Once installed, the client-server connection can be tested with the command "docker version".
 
 ## Kubernetes
-It is an open-source project from Google that has become the leading orchestrator of containerized apps.
+It is an open-source project from Google that has become the leading **orchestrator of containerized apps**.
 An orchestrator is a software that helps deploying and managing containers. Kubernetes (k8s) is a higher-level platform than docker, and uses this latter as its default container runtime (it's Docker that starts and stops containers, pulls images, etc.). It is possible to swap out Docker for another container runtime. In the future, k8s might use containerd instead of Docker by default.
 
 ## DevOps
-The DevOps term refers to a movement that aims to unite software development (Dev) and IT operations (Ops). Concretely, it consists of a set of practices that allow to shorten the development life cycle and provide continuous delivery. In a DevOps approach, we try to automate and monitor every step of the creation of a software from the development, integration, tests, delivery and deployment, exploitation and maintenance of infrastructures.
-DevOps is an agile approach (unlike the waterfall approach), in which the product is frequently shown to the customer.
+The term *DevOps* refers to a movement that aims to unite software development (Dev) and IT operations (Ops). Concretely, it consists of a set of practices that allow to shorten the development life cycle and provide continuous delivery. In a DevOps approach, we try to automate and monitor every step of the creation of a software from the development, integration, tests, delivery and deployment, exploitation and maintenance of infrastructures.
+DevOps is an **agile approach** (unlike the waterfall approach), in which the product is developped with the customer.
 
-<!-- # ```{r engine="docker", image="ubuntu:latest", command="bash"} -->
-<!-- # uname -a -->
-<!-- # ``` -->
+***
 
 \newpage
 # 2. Introduction
@@ -95,7 +96,7 @@ In the container, we can list the running processes:
 ```
 There are 2 processes: */bin/bash* and *ps -elf*. However, this latter stopped existing by the time the output was printed. In reality, there is only */bin/bash* running (it is optimal, nothing else is using resources).
 
-We can exit the container with *Ctr-PQ* without killing it. This brings us back to our Docker host's terminal.
+We can exit the container with *Ctr-PQ* (it detaches our shell from the terminal of the container) without killing it. This brings us back to our Docker host's terminal, and the container is still running in the background.
 Now, if we check again the running processes with *ps -elf*, we see there are more than in the container.
 
 We didn't kill the container, and we can see it with the following command:
@@ -116,7 +117,7 @@ The flag *-a* in the last command lists all the containers, even the ones that w
 
 ## The Dev perspective
 
-This time, we focus more on the application: we will clone a nodejs web app from Github, inspect its Dockerfile, containerize it, and run it as a container.
+This time, we **focus** more on the **application**: we will clone a nodejs web app from Github, inspect its Dockerfile, containerize it, and run it as a container.
 The linux app can be cloned from <https://github.com/nigelpoulton/psweb.git>:
 ```{r}
 # git clone https://github.com/nigelpoulton/psweb.git
@@ -140,7 +141,7 @@ RUN npm install
 EXPOSE 8080  
 ENTRYPOINT ["node", "./app.js"]  
 
-So, we use the Dockerfile to build a Docker image:
+So, we use the **Dockerfile** to **build** a Docker **image**:
 ```{r}
 # docker image build -t test:latest .
 ```
@@ -158,58 +159,68 @@ We now have an image with the app inside. We can start a container from this ima
 To see the result (on Play With Docker), click on the button *OPEN PORT* above the terminal and type 8080 (otherwise open a browser and navigate to localhost:8080).
 The process of building an image from code and then building a container from this image is called *containerizing* an app.
 
+***
+
 \newpage
 # 3. Technical
 
 ## The docker engine (or server)
 
+### Past architecture
 At the beginning, the docker engine had two major components:
 
-- The Docker daemon: it used to be a monolithic binary that contained all the code for the Docker client, the API, the container runtime, image builds, and much more. This is not what Docker wanted (slow and hard to innovate), and the work of breaking apart the daemon into smaller tools is still an ongoing process. To this day, it has already seen all of the container execution and container runtime code entirely removed. Is is becoming more and more modular, and many components can be swapped, thanks to the OCI (Open Container Initiative) standards.
+- **The Docker daemon**: it used to be a monolithic binary that contained all the code for the Docker client, the API, the container runtime, image builds, and much more. This is not what Docker wanted (slow and hard to innovate), and the work of breaking apart the daemon into smaller tools is still an ongoing process. To this day, it has already seen all of the container execution and container runtime code entirely removed. Is is becoming more and more modular, and many components can be swapped, thanks to the OCI (Open Container Initiative) standards.
 
-- LXC: provided the daemon with access to fundamental building-blocks of containers that existed in the Linux kernel (*namespaces* and *control groups*). Problems: LXC is Linux specific and Docker didn't want to rely on an external tool for the core of the project. They replaced LXC with their own platform-agnostic tool called *libcontainer*, which provides Docker with accesss to the fundamental container building-blocks that exist inside the kernel.
+- **LXC**: provided the daemon with access to fundamental building-blocks of containers that existed in the Linux kernel (*namespaces* and *control groups*). **Problems**: LXC is Linux specific and Docker didn't want to rely on an external tool for the core of the project. They replaced LXC with their own platform-agnostic tool called *libcontainer*, which provides Docker with accesss to the fundamental container building-blocks that exist inside the kernel.
 
-The current Docker engine architecture is the following.
+### Current architecture
+The **current Docker engine architecture** is the following.
 
 ![Current Docker engine architecture](Images/DockerEngineDet.png)
 
 The old monolithic daemon was broken down, giving birth to new layers:
 
-- runc: tool that manages container runtime code. It's the reference implementation of the OCI container-runtime-spec. In fact, runc is a CLI wrapper for libcontainer. It has a single purpose: **create containers**.
+- **runc**: tool that manages container runtime code. It's the reference implementation of the OCI container-runtime-spec. In fact, runc is a CLI wrapper for libcontainer. It has a **single purpose: create containers**.
 
-- containerd: tool that used to only manage container lifecycle operations (*start*, *stop*, *pause*, *rm*, ...). It now also takes care of image management (push and pull, ...).
+- **containerd**: tool that used to only manage container **lifecycle operations** (*start*, *stop*, *pause*, *rm*, ...). It now also takes care of **image management** (push and pull, ...).
 
 The daemon still performs image management, image builds, REST API, authentication, security, core networking and orchestration.
 
+### Creation of a container: under the hoods
 So, what happens when we create a new container via the docker CLI (the Docker client) ?
 ```{r}
 # docker container run --name ctr1 -it alpine:latest sh
 ```
 Based on Fig. 1, the Docker client converts the command into the appropriate API payload and POSTs it to the correct API endpoit.  
-We saw that the REST API is implemented in the Daemon, which is the layer under the Docker client. Once the daemon receives the command to create a new container, it makes a call to containerd via a CRUD-style API over gRPC.  
+We saw that the REST API is implemented in the Daemon, which is the layer under the Docker client.  
+Once the daemon receives the command to create a new container, it makes a call to containerd via a CRUD-style API over gRPC.  
 Containerd converts the required Docker image into an OCI bundle and tells runc to use it to create a new container.  
 Runc interfaces with the OS kernel to pull together all of the constructs necessary to create a container (namespaces, cgroups, ...). The container process is started as a child-process of runc, and as soon as it is started runc will exit. This means we can run hundreds of containers without having to run hundreds of runc instances.  
 Once a container's parent runc process exits, the associated containerd-shim process becomes the container's parent. Among other things, shims have the responsibility to keep any stdin/stdout streams open (so that when the daemon is restarted, the container doesn't terminate due to pipes being closed) and to report the container's exit status back to the daemon.
 
-The advantage of this model (code to start and manage containers out of the daemon) is that it makes it possible to perform maintenance and upgrades on the daemon without impacting running containers. In the old model, every daemon upgrade would kill all containers on the host.
+The **advantage** of this model (code to start and manage containers out of the daemon) is that it makes it possible to **perform maintenance and upgrades on the daemon without impacting running containers**. In the old model, every daemon upgrade would kill all containers on the host.
 
 In Linux, all these components are implemented in separate binaries: *dockerd* (docker daemon), *docker-containerd*, *docker-containerd-shim* and *docker-runc*.
+
+***
 
 \newpage
 ## Images
 
 Images are like a stopped container. We pull images from an image registry (like Docker Hub), and use it to start one (*docker container run*) or more (*docker service create*) containers.  
-Images are made up of multiple layers stacked on each other and represented as a single object. They contain a cut-down OS and all of the files and dependencies required to run an app. They are usually small and lightweight. For example, the official Alpine Linux Docker image is about 4MB in size! Windows-based images are a little bit different and tend to be bigger.
+Images are made up of **multiple layers** stacked on each other and represented as a single object. They contain a **cut-down OS** and all of the files and dependencies required to run an app. They are usually small and lightweight. For example, the official Alpine Linux Docker image is about 4MB in size! Windows-based images are a little bit different and tend to be bigger.
 
 ![Docker image](Images/DockerImages.png)
 
 It is possible to stop a container and create a new image from it: images are considered *build-time* constructs, whereas containers are *run-time* constructs. Once a container is started, the two constructs become dependant on each other. We cannot delete the image until the last container using it has been stopped and destroyed.
 
-On Linux, the image repository is located at /var/lib/docker/\<storage-driver\>. We can if our host has any images in its local repository with the following command:
+On Linux, the image repository is located at */var/lib/docker/\<storage-driver\>*. We can see if our host has any images in its local repository with the following command:
 ```{r}
 # docker image ls
 ```
-The syntax to pull an image is *docker image pull \<image\>. For example:
+
+### Repositories and pulling images
+The syntax to pull an image is *docker image pull \<image\>*. For example:
 ```{r}
 # docker image pull ubuntu:latest
 ```
@@ -232,19 +243,20 @@ To pull an image from a third party registry (such as Google Container Registry 
 
 Finally, we can pull all of the images in a repository by adding the flag *-a* to the *docker image pull* command. A same image can have different tags (they refer to the same image).
 
+### Filters
 The output of *docker image ls* can be filtered with the flag *--filter*. Example:
 ```{r}
 # docker image ls --filter dangling=true
 ```
-A dangling image is an image that is no longer tagged, and appears in listings as *\<none\>:\<none\>*. This happens when building a new image and tagging it with an existing tag.
+A **dangling** image is an image that is no longer tagged, and appears in listings as *\<none\>:\<none\>*. This happens when building a new image and tagging it with an existing tag.
 Dangling images can be deleted with the *docker image prune* command. Adding the flag *-a* also removes unused images (not in use by any container).
 
 Filters supported by docker are:
 
-- dangling: true or false
-- before: requires an image name/ID as argument, and returns all images created before it
-- since: same as *before*, but returns images created after the specified image
-- label: filters images based on the presence of a label or label and value.
+- dangling: true or false  
+- before: requires an image name/ID as argument, and returns all images created before it  
+- since: same as *before*, but returns images created after the specified image  
+- label: filters images based on the presence of a label or label and value.  
 
 The *--format* flag formats the output of the command. Example:
 ```{r}
@@ -262,6 +274,7 @@ Another example with a filter:
 ```
 By default, *docker search* displays 25 lines of results. This can be changed with the *--limit* flag.
 
+### Image layers
 We saw that images are made up of stacked read-only layers, and represented as a single object. In fact, we see those layers in the output of a *docker image pull* command:
 ```{r}
 # docker image pull ubuntu:latest
@@ -287,7 +300,7 @@ All docker images start with a base layer. Layers are added on top when changes 
 
 ![Image layers](Images/DockerLayers.png)
 
-It's important to understand that the image is always the combination of all layers. For example, the last image has 3 layers and each of these layer has some files that are combined.
+It's important to understand that the **image** is always the **combination of all layer**s. For example, the last image has 3 layers and each of these layer has some files that are combined.
 
 ![Files in image layers](Images/DockerLayers2.png)
 
@@ -312,17 +325,18 @@ This is where image digests come to the rescue. All images get a cryptographic c
 ```{r}
 # docker image ls --digests alpine
 ```
-Using the digest ensures that we get exactly the image we expect. At the time of the writing of the book, the only way to determine an image's digest is to pull it by tag and then make a note of its digest. However, this should change in the future.
+Using the digest ensures that we get exactly the image we expect. At the time of the writing of the book, the only way to determine an image's digest is to pull it by tag and then make a note of its digest. However, this should change in the future.  
 An image is just a configuration object that lists the layers and some metadata. The layers are where the data lives. Each layer is independant and has no concept of being part of a collective image.  
 Each image is identified by an ID that is a hash of the config object, and each layer is identified by an ID that is a hash of its content -> changing an image or its layers will change those IDs -> image and layers are immutable. We call these hashes content hashes.  
 Problem: when we push and pull images, their layers are compressed. This changes their content, and hence their content hashes... So, how can we check that the image we downloaded is safe ?
-Each layer also gets a  *distribution hash*, which is the hash of the compressed version of the layer.
+Each layer also gets a  **distribution hash**, which is the hash of the compressed version of the layer.
 
+### Multi-architecture images
 Is the image we're pulling built for the architecture we're running on ? Docker now supports multi-architecture images. This means a single image can have an image for Linux on x64, Linux on PowerPC, Windows x64, ARM, etc... So, a single image tag can support different architectures.
 To make this happen, the registry API supports 2 important constructs:
 
-- Manifest lists: list of architectures supported by a particular image tag. Each supported architecture has its own manifest.
-- Manifests: list detailing the layers each architecture is composed from.
+- **Manifest lists**: list of architectures supported by a particular image tag. Each supported architecture has its own manifest.
+- **Manifests**: list detailing the layers each architecture is composed from.
 
 Below is an example of the official golang image.
 
@@ -337,6 +351,7 @@ The following example shows how this work by pulling the official golang image:
 We see the version of Go as well as the CPU architecture of the host. Note that we don't need to tell Docker we need the Linux x64 or Windows x64 versions of the image. Docker takes care of getting the right image for the platform and architecture we're running.
 At the time of the writing of the book, all official images have manifest lists.
 
+### Deleting images
 Finally, when we're done with an image, we can delete it from our Docker host with the *docker image rm* command. We cannot delete an image that is being used by a running or a stopped container. If an image layer is shared by more than one image, that layer will not be deleted until all images that reference it have been deleted.
 
 For example, we can delete the golang image with (see image with *docker image ls*):
@@ -350,10 +365,12 @@ We can delete all image on a docker host with the following command:
 ```
 because *docker image ls -q* returns a list containing just the images IDs.
 
+***
+
 \newpage
 ## Containers
 
-A container is the execution environment of an image. We can start one or more containers from an image. We can create our own images or start from an existing one (see <https://hub.docker.com/> example).
+A container is the **execution environment of an image**. We can start one or more containers from an image. We can create our own images or start from an existing one (see <https://hub.docker.com/> for example).
 
 Before looking at the commands for containers, let's see the differences between containers and VMs in detail.
 To illustrate this difference, we will imagine the following situation: we want to run 4 applications on a physical server (both need a host such as a laptop, a bare metal server, etc). How does the scenario differ between VMs and containers?
@@ -369,17 +386,19 @@ The image below shows the differencess between the 2 models.
 
 ![Difference between VMs (left) and containers (right)](Images/DockerVMCont.png)
 
-So, a hypervisor virtualizes hardware, while containers virtualize an OS. It is very important to understand that containers share the host OS. In theory, an application developped for Linux containers will not work on Windows (although it's possible in practice).
+So, a **hypervisor virtualizes hardware, while containers virtualize an OS**. It is very important to understand that **containers share the host OS**. In theory, an application developped for Linux containers will not work on Windows (although it's possible in practice).
 
-So far, it seems that the two models are quite identical. However, we see on the image above that each VM is a software that contains a virtual CPU, a virtual RAM, virtual storage disks, and so on. Those virtual resources are handled by an OS, and the problem is that every OS consumes CPU, RAM, storage, etc. Those OS also require a licence, patching, monitoring, and are vulnerable attack vectors...  
-This is what we call the **VM tax**: each OS that we install consumes resources.  
+So far, it seems that the two models are quite identical. However, we see on the image above that each VM is a software that contains a virtual CPU, a virtual RAM, virtual storage disks, and so on.  
+Those virtual resources are handled by an OS, and the problem is that every OS consumes CPU, RAM, storage, etc. Those OS also require a licence, patching, monitoring, and are vulnerable attack vectors...  
+This is what we call the **VM tax**: each OS that we install consumes resources. 
+
 The advantage of the container model is that it has a single kernel that runs on the host's OS, and this single OS can run hundreds of containers. This means there is only one OS consuming resources, one license, one possible vector of attack, etc. Also, containers contain lightweight OS with no kernel (which is shared with the host and already started); they start way faster than a VM. The time to start a container only depends on the time required to start the application it runs.  
 This difference becomes more and more as the number of applications increases. 
 
 All those differences are in favor of the container model.
 
 ### Running containers
-Let's see the commands to run containers. The following examples can be replicated on any Docker host or in Play with Docker (<https://labs.play-with-docker.com/>).
+Let's see the commands to run containers. The following examples can be replicated on any Docker host or on Play with Docker (<https://labs.play-with-docker.com/>).
 
 The syntax to create a container is *docker container run \<options\> \<image\>:\<tag\> \<app\>*. Example:
 ```{r}
@@ -388,13 +407,15 @@ The syntax to create a container is *docker container run \<options\> \<image\>:
 We're in the container and the 12 digits after *@* are the first 12 digits of the container's ID.
 We see that the daemon didn't find the image locally (in cache), so it pulled it from Docker Hub and cached it. We can see it by exiting the container with *Ctrl+d* and by rerunning the previous command.  
 
-The command above starts a Linux container with Bash shell. The flag *-it* connects our terminal to the container's shell and makes it interactive. We didn't specify the *\<tag\>*, and it takes the *latest* image of ubuntu by default. We can check we're in Linux with the command *uname*, and in Ubuntu with *uname -v*. Finally, we asked to run Bash shell, that's why we can use commands such as *ls*, *cd*, and so on. However, some commands don't work because the image is optimized for containers and doesn't contain all the commands and packages... For example, the command *nano file.txt* won't work.
+The command above starts a Linux container with Bash shell.  
+The flag *-it* connects our terminal to the container's shell and makes it interactive.  
+We didn't specify the *\<tag\>*, and it takes the *latest* image of ubuntu by default. We can check we're in Linux with the command *uname*, and in Ubuntu with *uname -v*.  
+Finally, we asked to run Bash shell, that's why we can use commands such as *ls*, *cd*, and so on. However, some commands don't work because the image is optimized for containers and doesn't contain all the commands and packages... For example, the command *nano file.txt* won't work.
 
 So, running containers is very easy, fast and platform-agnostic.
 
-
 ### Container processes
-In the previous example, we started a container that runs Bash shell. It was the single and unique process running in the container. We can see it with the command *ps -elf*: there is ps -elf, but it is dead by the time it is displayed. Windows containers are a little bit different and run more processes.
+In the previous example, we started a container that runs Bash shell. It was the single and unique process running in the container. We can see it with the command *ps -elf*: there is ps -elf itself, but it is dead by the time it is displayed. Windows containers are a little bit different and run more processes.
 
 If we use the command *exit* to get out of Bash shell, we also exit the container -> a container cannot live without running a process (same for Windows if we kill the main process).
 
@@ -406,7 +427,7 @@ We can attach back to the container with the command:
 ```{r}
 # docker container exec -it <ID> bash
 ```
-If we execute *ps -elf* again, we now see 2 bash: this is because the previous command creates a new bash process to which we attach. If we exit this bash, it doesn't kill the container.
+"exec" let us run a new process inside of a running container. If we execute *ps -elf* again, we now see 2 bash: this is because the previous command creates a new bash process to which we attach. If we exit this bash, it doesn't kill the container.
 The container runs until the app it runs stops, or until we stop or kill it. 
 We can see it by running the following command:
 ```{r}
@@ -418,7 +439,7 @@ Finally, we can stop and kill a container with the 2 following commands:
 # docker container stop <ID>
 # docker container rm <ID>
 ```
-It is a good practice to proceed in two steps, although it is possible to do it with one command (*docker container rm -f*). This is to give a chance to the application to stop properly.
+We saw it is a good practice to proceed in two steps, although it is possible to do it with one command (*docker container rm -f*). In fact, *docker container stop* sends a **SIGTERM** signal to the PID 1 process inside of the container. In then have 10 seconds to clean things up and shut itself down. If it doesn't exit within 10 seconds, it will receive a **SIGKILL**.
 
 ### Containers lifecycle
 It is a myth that containers can't persist data. let's look at the lifecycle of an Ubuntu container.
@@ -438,7 +459,7 @@ Now, we get out of the container with *Ctrl -PQ*, and check it is still here wit
 ```{r}
 # docker container stop <ID/name>
 ```
-And check once again its presencee with *docker container ls*. It's not here... To see stopped container, we need to add the flag *-a*:
+And check once again its presencee with *docker container ls*. It's not here... To see stopped containers, we need to add the flag *-a*:
 ```{r}
 # docker container ls -a
 ```
@@ -462,5 +483,54 @@ and delete it:
 ```
 We will see that if we persist data on a volume, they are safe even if we kill and remove the container.
 
-### Stopping containers gracefully
+### Self-healing containers with restart policies
+It's often a good idea to run containers with a restart policy. It enables Docker to automatically restart them after certain events of failures have occured.
 
+Restart policies are applied per container, and can be configured imperatively on the command line as part of *docker container run* commands, or declaratively in Compose files for use with Docker Compose and Dockerr Stacks.
+
+There are 3 restart policies at the time of writing:
+
+- **always**: will always restart a stopped container, unless it has been explicitly stopped (*docker container stop*). Example: start an interactive container with *--restart always*, tell it to run a shell process, and type exit. Then, we look at the status with *docker container ls*.
+```{r}
+# docker container run --restart always -it ubuntu /bin/bash
+```
+- **unless-stopped**: the main difference between *always* and *unless-stopped* is that containers with the *--restart unless-stopped* policy will not be restarted when the daemon restarts if they were in the stopped (exited) state. Example: we create 2 containers with 1 policy each, stop them, and restart Docker (on a host's terminal with Docker installed). The flag *-d* in the following commands stands for *daemon* mode: it makes the container start in the background, without attaching it to our terminal.
+```{r}
+# docker container run --restart always -d --name always alpine sleep 1d
+# docker container run --restart unless-stopped -d --name unless-stopped alpine sleep 1d
+# docker container ls
+# docker container stop always unless-stopped
+# docker container ls -a
+# systemctl restart docker # <- for Linux, cmd+R on mac
+# docker container ls -a
+```
+- **on-failure**: restarts a container if it exits with a non-zero exit code. It will also restart containers when the Docker daemon restarts, even containers that were in the stopped state.
+
+### Web server example
+Let's look at a Linux web server example. The image we will use uses a very simple web server on port 8080. We start by cleaning up existing containers on our system:
+```{r}
+# docker rm $(docker ps -a -q)
+```
+We then run the following command:
+```{r}
+# docker container run -d --name webserver -p 80:8080 \
+# nigelpoulton/pluralsight-docker-ci
+```
+We saw that the flag *-d* starts the container in the background, and this is why our prompt didn't change.  
+We used the flag *-p* and specified 80:8080. This flag maps ports on the Docker host to ports inside the container. Here, we're mapping port 80 on the host to port 8080 in the container. This means that traffic hitting the host on port 80 will be redirected to port 8080 inside the container.  
+The image we're using defines a web service that listens on port 8080, so our container will come up running a web server listening on port 8080. *docker container ls* shows the ports that are mapped with the syntax *host-port:container-port*.  
+Now that the container is running and ports are mapped, we can connect to the container by pointing a web browser at the IP address or DNS name of the Docker host on port 80 (on Play with Docker, click on "OPEN PORT" and type 80). 
+
+### Inspecting containers
+We just ran a container without specifying any app. Yet the container ran a web service... Why ?!
+When building a Docker image, it is possible to embed an instruction that lists the default app to run. In the previous case, we can see it by inspecting the image:
+```{r}
+# docker image inspect nigelpoulton/pluralsight-docker-ci
+```
+The entries after *Cmd* show the command/app that the container will run by default. Here, we see the following commands: */bin/sh -c "cd /src && node ./app.js"*.  
+Building images with default commands is very common, as it makes starting containers easier.
+
+***
+
+\newpage
+## Containerizing an app
