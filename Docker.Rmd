@@ -534,3 +534,140 @@ Building images with default commands is very common, as it makes starting conta
 
 \newpage
 ## Containerizing an app
+
+Docker is about taking applications and running them in containers. **Containerizing** is the process of taking an app and configure it to run as a container.
+In this section we will see how to containerize a simple Linux web app. 
+
+At this point, we already know how it should look: 
+- We write code for an app
+- Create a Dockerfile that describes the app, its dependencies and how to run it
+- Feed the Dockerfile into *docker image build*
+- Docker builds the app into a Docker image -> it containerizes it
+- We can ship the app and run it as a container or service
+
+### Containerize a single-container app
+We will containerize a simple single-container Node.js web app. Once the app is containerized and tested, we move to **production** with **multi-stage builds**.
+
+#### Write code for an app
+Here, we will use an app written by Nigel. The app code for this example comes from <https://github.com/nigelpoulton/psweb>. Clone the sample app:
+```{r}
+# git clone https://github.com/nigelpoulton/psweb
+```
+It creates a new directory called psweb. *cd psweb* to it and list its content with *ls -al*. This directory contains all of the application source code. The code can be viewed with *cat app.js*.
+
+#### Create a Dockerfile
+Let's inspect the Dockerfile with *cat Dockerfile*. This file tells Docker how to build the app into an image.  
+The directory containing the app is referred to as the **build context**. It's a good practice to keep the Dockerfile in the root directory of the build context.
+
+The Dockerfile has 2 purposes:
+- To describe the app
+- To tell Docker how to create an image with the app inside (containerize it)
+
+The present Dockerfile contains the following:
+
+FROM alpine  
+LABEL maintainer="nigelpoulton@hotmail.com"  
+RUN apk add --update nodejs nodejs-npm  
+COPY . /src  
+WORKDIR /src  
+RUN npm install   
+EXPOSE 8080  
+ENTRYPOINT ["node", "./app.js"]  
+
+We can comment lines in a Dockerfile with "#". Non-comment line are instructions of the form *Instruction* argument. If an instruction is adding content (files and programs), it will create a new layer. If it is adding instructions on how to build the image and run the app, it will create metadata.  
+The *docker image build* command will read the Dockerfile one line at a time. For each instruction, Docker looks to see if it already has an image layer for that instruction in its cache. If it does, it uses it, otherwise it builds a new layer. However, as soon as no layer was found for an instruction, the cache is no longer used for the rest of the entire build -> impacts how we write Dockerfiles (instructions likely to change towards the end!). Docker checks that cached files haven't changed. If it did, it doesn't use that layer but builds a new one.
+
+All Dockerfiless start with the *FROM* instruction, which will be the base layer of the image. The rest of the app will be added on top as additional layers. Because it's a Linux app, it's important that the FROM instruction refers to a Linux-based image.  
+Then, the Dockerfile creates a LABEL that specifies "nigelpoulton@hotmail.com" as the maintainer of the image. Labels are key-value pairs and an excellent way of adding custom metadata to an image. Listing a maintainer is considered a best practice.
+The *RUN apk add --update nodejs nodejs-npm* instruction uses the Alpine *apk* package manager too install nodejs and nodejs-npm into the image. The RUN instruction installs these packages as a new image layer.  
+Then, the *COPY . /src* instruction copies in the app files from the build context. It copies these files into the image as a new layer.  
+Next, the Dockerfile uses the *WORKDIR* instruction to set the working directory for the rest of the instructions in the file. This directory is relative to the image -> the info is added as metadata to the image config and not as a new layer.  
+Then, the *RUN npm install* instruction uses *npm* to install application dependencies listed in the *package.json* file in the build context (Among other things, the *package.json* contains "dependencies": {
+    "express": "4.17.1",
+    "pug": "2.0.4",
+    "mocha": "7.1.1",
+    "supertest": "4.0.2"
+  }). In installs them as a new layer in the image.
+The app exposes a web service on TCP port 8080, so the Dockerfile documents this with the *EXPOSE 8080* instruction. This is added as metadata and not an image layer.  
+Finally, the *ENTRYPOINT* instruction is used to set the main application that the image (container) should run. This is also added as metadata.
+
+The resulting image contains 4 layers as follows:
+
+![Image of the application](Images/DockerAppImage.png)
+We can also view the instructions that were used to build the image:
+```{r}
+# docker image history web:latest
+```
+Each line corresponds to an instruction in the Dockerfile. The lines with non-zero values in *SIZE* are lines which created new layers. We can see these 4 layers with *docker image inspect* command.
+
+#### Containerize the app (build the image)
+We can now build the image by feeding the Dockerfile into *docker image build*. The following command will build a new image called web:latest. The period (.) at the end of the line tells Docker to use the shell's current working directory as the build context.
+```{r}
+# docker image build -t web:latest .
+```
+We can then see the image with *docker image ls*. The app is containerized, and we can inspect it:
+```{r}
+# docker image inspect web:latest
+```
+We see the settings that were configured from the Dockerfile. In fact, what happens when we *build* an image is: spin up a temporary container > run the Dockerfile instruction inside of that container > save the results as a new image layer > remove the temporary container.
+
+#### Pushing the image
+We have an image locally, but generally we want to make it available to others. This is why we can store it in an image registry. Docker Hub is the most common public image registry and is the default push location for *docker image push* commands.
+Log in to Docker Hub:
+```{r}
+# docker login
+```
+And log in with your Docker credentials. Before pushing an image, it has to be tagged in a special way. This is because Docker needs the following information: registry, repository and tag. The default vales are: Registry=docker.io and Tag=latest. Docker doesn't have a default value for the repository. So, we tag the image:
+```{r}
+# docker image tag web:latest <Docker ID>/web:latest
+```
+*docker images ls* now shows 2 images (the previous command didn't overwrite the existing image, but created a second image with the new tag). The Repository value taken will be the one we see under REPOSITORY in the *docker image ls* output. We can now push the image to Docker Hub:
+```{r}
+# docker image push <Docker ID>/web:latest
+```
+We can navigate to <https://hub.docker.com/>, and the image should be there.
+
+#### Run the app and test it
+We run a container called c1, based on the web:latest image we just created:
+```{r}
+# docker container run -d --name c1 \
+# -p 80:8080 \
+# web:latest
+```
+Note that \\ at the end of the line allows to split the instruction on several lines. We check the port mapping and that the container is running with *docker container ls*.
+
+If the previous output is good and the container is running, we can test it by opening a web browser and browsing to localhost:80 or, on Play with Docker, by clicking on *OPEN PORT* and typing 80.
+
+#### Moving to production with Multi-stage builds
+We want to ship images containing only the stuff **needed** to production, that is a lightweight, fast and safe image. In the past, it was common to create a *Dockerfile.dev* and a *Dockerfile.prod*.  Nowadays, it is easier to use **multi-stage builds**. In multi-stage builds, we have a single Dockerfile containing multiple *FROM* instructions, and each of them is a new build stage that can easily *COPY* arrtefacts from previous stages.
+
+Example: let's clone an existing app from Github:
+```{r}
+# git clone https://github.com/nigelpoulton/atsea-sample-shop-app
+```
+Then, let's change directory with *cd atsea-sample-shop-app/app/* and inspect it with *ls -l*. We see the Dockerfile, and we can inspect it with *cat Dockerfile*.  
+We see 3 blocks of instructions (= 3 build stages), each starting with a different *FROM*:
+- Stage 0 is called *storefront*: it pulls thee node:latest image (~600MB). It sets the working directory, copies in some app code, and uses 2 *RUN* instructions. This addss 3 layers and considerable size.
+- Stage 1 is called *appserver*: it pulls the maven:latest image (~700MB). It adds 4 layers of content (2 *COPY* and 2 *RUN*), resulting in an even bigger image.
+- Stage 2 isn't named here, but in the book it's called *production*: it pulls the java:8-jdk-alpine image (~150MB). It adds a user, set the WD, and copies some app code from the image produced by the *storefront* stage. After that, it sets a different WD and copies in the app code from the image produced by the *appserver* stage. Finally, it sets the main app for the image to run when it's started as a container.
+
+It's important to note that *COPY --from* instructions only copy production-related app code, and not build artefacts. We can now build it:
+```{r}
+# docker image build -t multi:stage .
+```
+The *multi:stage* tag is arbitrary, we could have tagged it differently. We can see the list of images pulled and created by the build operation with *docker image ls*. The multi:stage image is significantly smaller than the other ones.
+
+#### Squashing an image
+Squashing is the process of squasing all the layers of an image into a single layer. It might be good if an image starts to have a lot of layers (especially if we want to build other images from it). The negative side is that squashed images do not share layers with other images on the host (storage inefficiencies).
+We can create a squashed image by adding the *--squash* flag to the *docker image build* command.
+Squashing is not a best practice, but can be useful sometimes.
+
+#### Good practices
+When building Linux images with the apt package manager, use the *no-install-recommend* flag with the *apt-get install* command. This makes sure that apt only installs main dependencies.
+When building Windows images, don't use the MSI package manager (not space efficient).
+
+\newpage
+## Deploying apps with Docker Compose
+
+\newpage
+## Commands
