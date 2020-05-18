@@ -10,7 +10,7 @@ output:
 ---
 
 \newpage
-The structure of this document is not the same as the one in the book. The installation of Docker is not covered, and only Linux examples are given (no Windows). All the examples can be reproduced with Docker installed on a host, or on Play with Docker (<https://labs.play-with-docker.com/>). The summary is organized as follows: 
+The structure of this document is not the same as the one in the book. The installation of Docker, as well as the chapters "Tools for the enterprise" and "Enterprise-grade features" are not covered. Only Linux examples are given (no Windows), and they can all be reproduced with Docker installed on a host, or on Play with Docker (<https://labs.play-with-docker.com/>). The summary is organized as follows: 
 \tableofcontents
 
 ***
@@ -668,6 +668,71 @@ When building Windows images, don't use the MSI package manager (not space effic
 
 \newpage
 ## Deploying apps with Docker Compose
+
+Most modern apps are made of multiple smaller services (**microservices**) that interact to form a useful app.  
+Example : an app with the 4 following services: web front-end, ordering, catalog, back-end database.  
+
+**Docker Compose** is an external tool (python library) that helps deploying and managing all those services. It lets us describe an entire app in a single declarative configuration **YAML file**. We then pass the YAML file to the *docker compose* binary, and Compose deploys it via the Docker Engine API. Once deployed, we can manage the app's lifecycle with a simple set of commands.
+
+Docker Compose has to be installed on top of the Docker engine.
+
+#### Installing Compose
+Docker Compose is installed as part of Docker for Mac (DfM), and it's the same for Windows (DfW). The book details the installation for Linux and Windows Server, but this is not covered here.  
+Note that Docker Compose is also available on Play With Docker.
+
+In a terminal (or on Play With Docker), we can check that we have Docker Compose with the following command:
+```{r}
+# docker-compose --version
+```
+
+#### Compose files
+Compose uses YAML files to define multi-service applications. YAML is a subset of JSON, so we can also use JSON.  
+The default name for the Compose YAML file is *docker-compose.yml*.
+
+Example: let's see the Compose file that define a simple Flask app (Flask is a web framework (allows to build web apps)). The app is called *counter-app* and has 2 services: *web-fe* and *redis*. It's a simple web server that counts the number of visits and stores the value in Redis (Redis is an open source, in-memory data structure store, used as a database, cache and message broker).
+
+The Compose file is the following:  
+
+version: "3.5"  
+services:  
+&nbsp;&nbsp;&nbsp;&nbsp;web-fe:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;build: .  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;command: python app.py  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ports:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- target: 5000  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;published: 5000  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;networks:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- counter-net  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;volumes  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- type: volume  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;source: counter-vol  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target: /code  
+&nbsp;&nbsp;&nbsp;&nbsp;redis:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;image: "redis:alpine"  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;networks:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;counter-net:  
+
+networks:  
+&nbsp;&nbsp;&nbsp;&nbsp;counter-net:  
+
+volumes:  
+&nbsp;&nbsp;&nbsp;&nbsp;counter-vol:  
+
+We see that the file has 4 top-level keys (there could be other top-level keys such as configs and secrets):
+
+- version: defines the version of the Compose file format. This key is mandatory and is always the first line.
+- services: where we define the different application services. We have 2 services in our example: a web front-end (web-fe), and an in-memory database (redis). Compose will deploy each of these services as its own container.
+- networks: tells Docker to create new networks. By default, it creates *bridge* networks (single host networks that can only connect containers on the same host). We can select different network types with the *driver* property.
+- volumes: where we tell Docker to create new volumes.
+
+In our example, the file uses the the Compose v3.5 file format, defines 2 services, defines a network called counter-net, and defines a volume called counter-vol.  
+The service section has 2 second-level keys: web-fe and redis. They each define a service in the app, and Compose will deploy each as a container.
+Let's look at those services in detail, starting with web-fe:
+
+- *build: .*  tells Docker to build a new image using the Dockerfile in the current directory. This image will be used to create the container for this service.
+- *command: python app.py* tells Docker to run a Python app called app.py as the main app in the container (the app.py file must exist in the image, and the image must contain Python -> in the Dockerfile).
+- *ports* tells Docker to map port 5000 inside the container to port 5000 on the host (published).
+
 
 \newpage
 ## Commands
