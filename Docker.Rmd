@@ -731,8 +731,90 @@ Let's look at those services in detail, starting with web-fe:
 
 - *build: .*  tells Docker to build a new image using the Dockerfile in the current directory. This image will be used to create the container for this service.
 - *command: python app.py* tells Docker to run a Python app called app.py as the main app in the container (the app.py file must exist in the image, and the image must contain Python -> in the Dockerfile).
-- *ports* tells Docker to map port 5000 inside the container to port 5000 on the host (published).
+- *ports* tells Docker to map port 5000 inside the container to port 5000 on the host (published). Traffic sent to the Docker host on port 5000 will be redirected to port 5000 on the container. The app inside the container listents oon port 5000.
+- *networks* tells Docker which network to attach the service's container to.
+- *volumes* tells Docker to mount the counter-vol volume to /code inside the container.
 
+And redis:
+
+- *image: redis:alpine* tells Docker to start a standalone container called redis based n the redis:alpine image (will be pulled from Docker Hub).
+- *netwrks*: the redis container will be attached to the counter-net network.
+
+Because both services will be deployed on the same network (counter-net), they will be able to resolve each other by name (important since the app is configured to communicate with the redis service by name).
+
+#### Deploying an app with Compose
+We use an app that we clone from Github:
+```{r}
+# git clone https://github.com/nigelpoulton/counter-app.git
+```
+If we cd in the *counter-app* directory , we see the following objects:
+
+- Dockerfile: describes how to build the image for the web-fe service  
+- app.py: application code (Python Flask app)  
+- docker-compose.yml: Compose file that describes how Docker should deploy the app  
+- requirements.txt: lists the packages required for the app
+
+In this case, *counter-app* is the *build-context*. We are ready to bring the app up by using Compose:
+```{r}
+# docker-compose up &
+```
+*docker compose up* is the most common way to bring up a Compose app. It builds all required images, creates all required networks and volumes, and starts all required containers. By default, *docker-compose up* expects the name of the Compose file to be *docker-compose.yml* or *docker-compose.yaml*. If it has a different name, we must specify it with the flag *-f*.  
+We could have used the flag *-d* to bring up the app in the background. We didn't do it here, and the *&* we used in the command gave us the terminal window back (so we get verbose outputs).
+
+We can now see the images with *docker image ls*: 3 images were either built or pulled as part of the deployment. *docker container ls* shows 2 containers, *docker network ls* shows the network, and *docker voolume ls* the volumes.
+
+On Play with Docker, we can click on *OPEN PORT* and type 5000. This should redirect us to the front-end page, which counts how many times we visited the page and stores it in the Redis back-end database (refresh the page).
+
+#### Managing an app with Compose
+How to start, stop, delete, and get the status of apps being managed by Docker Compose?  
+We'll also see how the volume we're using can be used to directly inject updates to the app's web front-end.
+
+We can bring down the app with the follwing command:
+```{r}
+# docker-compose down
+```
+In the output, we see that the counter-vol volume was not deleted, because it is intended to be a long-term persistent data store -> its lifecycle is decoupled from the containers it serves. This is why *docker volumes ls* still shows it.  
+The images used also remain on the system, so future deployments will be faster.
+
+We can bring the app up again, this time in the background, with the command:
+```{r}
+# docker-compose up -d
+```
+This time, it's really fast. We can see the current state of the app:
+```{r}
+# docker-compose ps
+```
+We see the 2 containers, the commands they are running, their current state, and the network ports they are listening on.
+
+We can list the processes running in each container with
+```{r}
+# docker-compose top
+```
+
+The app can stopped without deleting its resources with
+```{r}
+# docker-compose stop
+```
+Then, we can look at the status of the app with *docker-compose ps*, and check that the containers are still here with *docker container ls -a*.  
+We can restart the app with the following command:
+```{r}
+# docker-compose restart
+```
+Finally, we can delete a stopped Compose app with with
+```{r}
+# docker-compose rm
+```
+This doesn't delete volumes, images, and the files in the build-context. It just deletes containers and networks the app is using.  
+Note that we can **stop and delete** an app with the **single command** *docker-compose down*.  
+
+We saw earlier that we defined a new volume in the Compose file called *counter-vol*. This volume was mounted in the web-fe service at */code*. The first time we deployed the app, Compose checked if a volume already existed with this name. It didn't so it created it (we see it with *docker volume ls*).  
+We can also see from the Dockerfile that */code* is where the app is installed and executed from. In other words, the app code resides on a Docker volume.
+
+![Image of the application](Images/DockerCompose.png)
+
+This means we can make changes to files in the volume, from the host side, and have them reflected immediately in the app.
+Example:
+reprendre à use your favourite text editor...
 
 \newpage
 ## Commands
